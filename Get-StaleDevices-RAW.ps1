@@ -36,11 +36,11 @@
 [CmdletBinding(SupportsShouldProcess = $TRUE)]
 param(
     #PLEASE make sure you have specified your details below, else edit this and use the switches\variables in command line.
-    [parameter(Mandatory = $fALSE, HelpMessage = "Specify the Azure AD tenant ID.")]
+    [parameter(Mandatory = $False, HelpMessage = "Specify the Azure AD tenant ID.")]
     [ValidateNotNullOrEmpty()]
     [string]$TenantID = "",
 
-    [parameter(Mandatory = $fALSE, HelpMessage = "Specify the service principal, also known as app registration, Client ID (also known as Application ID).")]
+    [parameter(Mandatory = $False, HelpMessage = "Specify the service principal, also known as app registration, Client ID (also known as Application ID).")]
     [ValidateNotNullOrEmpty()]
     [string]$ClientID = ""
 )
@@ -383,6 +383,14 @@ Process {
     
     }
 
+    if(-not($TenantID)){
+        [string]$TenantID = Read-Host -Prompt "Enter your TenantID"
+    }
+
+    if(-not($ClientID)){
+        [string]$ClientID = Read-Host -Prompt "Enter ClientID of your Service Principal"
+    }
+
     $Script:PIMExpired = $null
     $FileDate = Get-Date -Format 'yyyy_MM_dd'
     $FilePath = "C:\Temp\StaleComputers\"
@@ -391,10 +399,10 @@ Process {
     $StaleDeviceReportFile = "$($StaleDeviceReportRemotePath)$($StaleDeviceReportFileName)"
     $LocalStaleReportFile = "$($FilePath)Output\$($StaleDeviceReportFileName)"
     
-    $ADForest = (Get-ADForest).RootDomain
-    $DomainTargets = (Get-ADForest -Identity $ADForest).Domains
+    $ADForest = (Get-ADForest).RootDomain                           # Get the name of the Forest Root domain
+    $DomainTargets = (Get-ADForest -Identity $ADForest).Domains     # Get the list of domains. This scales out for multidomain AD forests
     $ScriptStartTime = Get-Date -Format 'yyyy-MM-dd HH:mm'
-    $StaleDate = (Get-Date).AddDays(-90)
+    $StaleDate = (Get-Date).AddDays(-90)                            # number of days before a device is classified as stale\dormant
     [string]$Resource = "deviceManagement/managedDevices"
 
     # Grab the system proxy for internet access
