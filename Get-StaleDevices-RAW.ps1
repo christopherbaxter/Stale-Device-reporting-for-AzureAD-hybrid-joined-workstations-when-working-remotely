@@ -32,17 +32,17 @@
     In order to configure your Service Principal, follow this guide. https://msendpointmgr.com/2021/01/18/get-intune-managed-devices-without-an-escrowed-bitlocker-recovery-key-using-powershell/
 
 #>
-#Requires -Modules "MSAL.PS"
+#Requires -Modules "MSAL.PS,ActiveDirectory,AzureAD,ImportExcel,JoinModule,PSReadline"
 [CmdletBinding(SupportsShouldProcess = $TRUE)]
 param(
     #PLEASE make sure you have specified your details below, else edit this and use the switches\variables in command line.
     [parameter(Mandatory = $False, HelpMessage = "Specify the Azure AD tenant ID.")]
     [ValidateNotNullOrEmpty()]
-    [string]$TenantID = "",
+    [string]$TenantID = "", # Populate this with your TenantID, this will then allow the script to run without asking for the details
 
     [parameter(Mandatory = $False, HelpMessage = "Specify the service principal, also known as app registration, Client ID (also known as Application ID).")]
     [ValidateNotNullOrEmpty()]
-    [string]$ClientID = ""
+    [string]$ClientID = "" # Populate this with your ClientID\ApplicationID of your Service Principal, this will then allow the script to run without asking for the details
 )
 Begin {}
 Process {
@@ -391,18 +391,21 @@ Process {
         [string]$ClientID = Read-Host -Prompt "Enter ClientID of your Service Principal"
     }
 
+    # Variables - Customise these for your environment
     $Script:PIMExpired = $null
     $FileDate = Get-Date -Format 'yyyy_MM_dd'
     $FilePath = "C:\Temp\StaleComputers\"
+    #$InterimFileLocation = "$($FilePath)InterimFiles\"
     $StaleDeviceReportFileName = "StaleDeviceReport - $($FileDate).xlsx"
-    #$StaleDeviceReportRemotePath = "\\RemoteServer\Share\"  #Specify this if you would like to export the report to a share. I added this for remote reporting for another team
-    $StaleDeviceReportFile = "$($StaleDeviceReportRemotePath)$($StaleDeviceReportFileName)"
+    #$StaleDeviceReportRemotePath = "\\RemoteServer\Share\"         # Specify this if you would like to export the report to a share. I added this for remote reporting for another team
+    #$StaleDeviceReportFile = "$($StaleDeviceReportRemotePath)$($StaleDeviceReportFileName)"
     $LocalStaleReportFile = "$($FilePath)Output\$($StaleDeviceReportFileName)"
     
     $ADForest = (Get-ADForest).RootDomain                           # Get the name of the Forest Root domain
     $DomainTargets = (Get-ADForest -Identity $ADForest).Domains     # Get the list of domains. This scales out for multidomain AD forests
     $ScriptStartTime = Get-Date -Format 'yyyy-MM-dd HH:mm'
     $StaleDate = (Get-Date).AddDays(-90)                            # number of days before a device is classified as stale\dormant
+
     [string]$Resource = "deviceManagement/managedDevices"
 
     # Grab the system proxy for internet access
@@ -426,7 +429,9 @@ Process {
     Write-Host "Collected Data for $($AzureADDevices.count) objects from AzureAD - Completion Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm')" -ForegroundColor Green
     Disconnect-AzureAD
 
-    #$AzureADDevices | Export-Csv -Path "$($FilePath)InterimFiles\STALEAzureADExtract.csv" -Delimiter ";" -NoTypeInformation
+    #$AzureADDevices | Export-Csv -Path "$($InterimFileLocation)STALEAzureADExtract.csv" -Delimiter ";" -NoTypeInformation
+    #Remove-Variable -Name AzureADDevices -Force
+    #Clear-ResourceEnvironment
 
     #############################################################################################################################################
     # Intune Managed Device Data Extraction
@@ -443,7 +448,9 @@ Process {
 
     Write-Host "Collected Data for $($IntuneInterimArray.count) objects from MS Graph Intune - Completion Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm')" -ForegroundColor Green
 
-    #$IntuneInterimArray | Export-Csv -Path "$($FilePath)InterimFiles\STALEIntuneInterimArray.csv" -Delimiter ";" -NoTypeInformation
+    #$IntuneInterimArray | Export-Csv -Path "$($InterimFileLocation)STALEIntuneInterimArray.csv" -Delimiter ";" -NoTypeInformation
+    #Remove-Variable -Name IntuneInterimArray -Force
+    #Clear-ResourceEnvironment
 
     #############################################################################################################################################
     # OnPrem AD Data Extraction
@@ -479,7 +486,6 @@ Process {
                 Write-Host "Error Extracting from $($ServerTarget) for $($DomainTarget) - Error: $($_.Exception.Message)"
             }
         }
-        
         $RAWAllComps += $Comps
         Remove-Variable -Name Comps -Force
     }
@@ -493,7 +499,9 @@ Process {
 
     Write-Host "Completed AD OnPrem Data Standardisation - Completion Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm')" -ForegroundColor Green
 
-    #$AllOPCompsArray | Export-Csv -Path "$($FilePath)InterimFiles\STALEAllOPCompsArray.csv" -Delimiter ";" -NoTypeInformation
+    #$AllOPCompsArray | Export-Csv -Path "$($InterimFileLocation)STALEAllOPCompsArray.csv" -Delimiter ";" -NoTypeInformation
+    #Remove-Variable -Name AllOPCompsArray -Force
+    #Clear-ResourceEnvironment
 
     #############################################################################################################################################
     # Blending OnPrem AD data with MSGraph Intune Data
@@ -502,10 +510,10 @@ Process {
     Write-Host "Blending OnPrem AD Data Array with MS Graph Intune Data - Expected Runtime is 14 Minutes - Start Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm')" -ForegroundColor Green
 
     <#if ($AllOPCompsArray.count -lt 1) {
-        $AllOPCompsArray = [System.Collections.ArrayList]@(Import-Csv -Path "$($FilePath)InterimFiles\STALEAllOPCompsArray.csv" -Delimiter ";")
+        $AllOPCompsArray = [System.Collections.ArrayList]@(Import-Csv -Path "$($InterimFileLocation)STALEAllOPCompsArray.csv" -Delimiter ";")
     }
     if ($IntuneInterimArray.count -lt 1) {
-        $IntuneInterimArray = [System.Collections.ArrayList]@(Import-Csv -Path "$($FilePath)InterimFiles\STALEIntuneInterimArray.csv" -Delimiter ";")
+        $IntuneInterimArray = [System.Collections.ArrayList]@(Import-Csv -Path "$($InterimFileLocation)STALEIntuneInterimArray.csv" -Delimiter ";")
     }#>
         
     $IntuneInterimArray = [System.Collections.ArrayList]@($IntuneInterimArray | Sort-Object azureADDeviceId)
@@ -526,7 +534,7 @@ Process {
     Write-Host "Deduplicating blended data (OnPrem AD and MS Graph Intune Data) - Expected Runtime is 40 Minutes - Start Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm')" -ForegroundColor Green
         
     <#if ($AzureADDevices.count -lt 1) {
-        $AzureADDevices = [System.Collections.ArrayList]@(Import-Csv -Path "$($FilePath)InterimFiles\STALEAzureADExtract.csv" -Delimiter ";")
+        $AzureADDevices = [System.Collections.ArrayList]@(Import-Csv -Path "$($InterimFileLocation)STALEAzureADExtract.csv" -Delimiter ";")
     }#>
         
     $RAWAllDevProcArray = [System.Collections.ArrayList]@($RAWAllDevPreProcArray + $RAWAllDevNoIntuneDeviceID | Sort-Object AzureADDeviceID)
@@ -541,7 +549,7 @@ Process {
     Remove-Variable -Name RAWAllDevNoIntuneDeviceID -Force
     Clear-ResourceEnvironment
 
-    $DDAllDevProcArray | Export-Csv -Path "$($FilePath)InterimFiles\STALEDDAllDevProcArray.csv" -Delimiter ";" -NoTypeInformation
+    #$DDAllDevProcArray | Export-Csv -Path "$($InterimFileLocation)STALEDDAllDevProcArray.csv" -Delimiter ";" -NoTypeInformation
     #Remove-Variable -Name DDAllDevProcArray -Force
     #Clear-ResourceEnvironment
 
@@ -551,14 +559,14 @@ Process {
     # Exporting Stale Devices File
     #############################################################################################################################################
 
-    if ($DDAllDevProcArray.count -lt 1) {
-        $DDAllDevProcArray = [System.Collections.ArrayList]@(Import-Csv -Path "$($FilePath)InterimFiles\STALEDDAllDevProcArray.csv" -Delimiter ";")
-    }
+    <#if ($DDAllDevProcArray.count -lt 1) {
+        $DDAllDevProcArray = [System.Collections.ArrayList]@(Import-Csv -Path "$($InterimFileLocation)STALEDDAllDevProcArray.csv" -Delimiter ";")
+    }#>
 
     $AllDevices = [System.Collections.ArrayList]@($DDAllDevProcArray | Select-Object AzureADDeviceID, IntuneDeviceID, ObjectID, AADDisplayName, MSGraphDeviceName, OPDeviceName, OPDeviceFQDN, SourceDomain, UserUPN, enrolledDateTime, AADApproximateLastLogonTimeStamp, MSGraphlastSyncDateTime, OPLastLogonTS, AADEnabled, OPEnabled, AADSTALE, OPSTALE, MSGraphLastSyncStale, @{Name = "TrueStale"; Expression = { if ($_.AADStale -notlike "False" -and $_.OPStale -notlike "False" -and $_.MSGraphLastSyncStale -notlike "False") { "TRUE" }else { "FALSE" } } }, @{Name = "AccountEnabled"; Expression = { if ($_.AADEnabled -notlike "False" -and $_.OPEnabled -notlike "False") { "TRUE" }else { "FALSE" } } })
     #$StaleDevices = [System.Collections.ArrayList]@($AllDevices | Where-Object { ($_.TrueStale -like "TRUE") } | Select-Object AzureADDeviceID, IntuneDeviceID, ObjectID, AADDisplayName, MSGraphDeviceName, OPDeviceName, OPDeviceFQDN, SourceDomain, UserUPN, enrolledDateTime, AADApproximateLastLogonTimeStamp, MSGraphlastSyncDateTime, OPLastLogonTS, AADEnabled, OPEnabled, AADSTALE, OPSTALE, MSGraphLastSyncStale, TrueStale, AccountEnabled)
     $StaleDevices = [System.Collections.ArrayList]@($AllDevices | Select-Object AzureADDeviceID, IntuneDeviceID, ObjectID, AADDisplayName, MSGraphDeviceName, OPDeviceName, OPDeviceFQDN, SourceDomain, UserUPN, enrolledDateTime, AADApproximateLastLogonTimeStamp, MSGraphlastSyncDateTime, OPLastLogonTS, AADEnabled, OPEnabled, AADSTALE, OPSTALE, MSGraphLastSyncStale, TrueStale, AccountEnabled)
-    $StaleDevices | Export-Excel -Path $StaleDeviceReportFile -ClearSheet -AutoSize -AutoFilter -Verbose:$VerbosePreference
+    #$StaleDevices | Export-Excel -Path $StaleDeviceReportFile -ClearSheet -AutoSize -AutoFilter -Verbose:$VerbosePreference
     $StaleDevices | Export-Excel -Path $LocalStaleReportFile -ClearSheet -AutoSize -AutoFilter -Verbose:$VerbosePreference
 
     Write-Host "Completed Stale Device Data report - Completion Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm') - Start Time was $($ScriptStartTime)" -ForegroundColor Green
