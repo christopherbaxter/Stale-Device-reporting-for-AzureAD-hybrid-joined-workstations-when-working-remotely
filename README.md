@@ -22,7 +22,7 @@ Ultimately, I built a VM on-prem in one of our data centres to run this script, 
 
 # Disclaimer
 
-Ok, so my code may not be very pretty, or efficient in terms of coding. I have only been scripting with PowerShell for about 18 months, have had very little (if any), formal PowerShell training and have no previous scripting experience to speak of, apart from the '1 liners' that AD engineers normally create, so please, go easy. I have found that I LOVE PowerShell and finding strange solutions like this have become a passion for me.
+Ok, so my code may not be very pretty, or efficient in terms of coding. I have only been scripting with PowerShell since September 2020, have had very little (if any), formal PowerShell training and have no previous scripting experience to speak of, apart from the '1 liners' that AD engineers normally create, so please, go easy. I have found that I LOVE PowerShell and finding strange solutions like this have become a passion for me.
 
 ## Christopher, enough ramble, How does this thing work?
 
