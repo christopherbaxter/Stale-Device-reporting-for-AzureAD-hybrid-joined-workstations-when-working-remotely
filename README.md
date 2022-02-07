@@ -107,7 +107,7 @@ Here you will see that there is a section that if enabled, will import the expor
 
 Now things start to get interesting. The script in this section 'blends' the previously extracted data. The data is matched using the 'objectGUID' from the on-prem data extraction with the 'AzureADDeviceID' from the Intune extract. Interestingly, the on-prem AD 'objectGUID' and the 'AzureADDeviceID' is the same. At least if the devices are Hybrid joined. I am unable to comment on other environments though. Your mileage may vary.
 
-I 'blend' the data in both 'directions'. I noted that I got different numbers so, for completeness, this process was born. This also creates a number of duplicate records.
+I 'blend' the data in both 'directions'. I noted that I got different numbers (object counts) so, for completeness, this process was born. This also creates a number of duplicate records.
 
 ### Data Deduplication and AzureAD Data Blending
 
