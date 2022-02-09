@@ -38,11 +38,13 @@ param(
     #PLEASE make sure you have specified your details below, else edit this and use the switches\variables in command line.
     [parameter(Mandatory = $False, HelpMessage = "Specify the Azure AD tenant ID.")]
     [ValidateNotNullOrEmpty()]
-    [string]$TenantID = "", # Populate this with your TenantID, this will then allow the script to run without asking for the details
+    #[string]$TenantID = "", # Populate this with your TenantID, this will then allow the script to run without asking for the details
+    [string]$TenantID,
 
     [parameter(Mandatory = $False, HelpMessage = "Specify the service principal, also known as app registration, Client ID (also known as Application ID).")]
     [ValidateNotNullOrEmpty()]
-    [string]$ClientID = "" # Populate this with your ClientID\ApplicationID of your Service Principal, this will then allow the script to run without asking for the details
+    #[string]$ClientID = "" # Populate this with your ClientID\ApplicationID of your Service Principal, this will then allow the script to run without asking for the details
+    [string]$ClientID
 )
 Begin {}
 Process {
@@ -383,13 +385,7 @@ Process {
     
     }
 
-    if(-not($TenantID)){
-        [string]$TenantID = Read-Host -Prompt "Enter your TenantID"
-    }
-
-    if(-not($ClientID)){
-        [string]$ClientID = Read-Host -Prompt "Enter ClientID of your Service Principal"
-    }
+    
 
     # Variables - Customise these for your environment
     $Script:PIMExpired = $null
@@ -437,8 +433,8 @@ Process {
     # Intune Managed Device Data Extraction
     #############################################################################################################################################
 
-    if ($AccessToken) { Remove-Variable -Name AccessToken -Force }
-    $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ForceRefresh -Silent -ErrorAction Stop
+    Try { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ForceRefresh -Silent -ErrorAction Stop }
+    catch { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ErrorAction Stop }
     if ($AuthenticationHeader) { Remove-Variable -Name AuthenticationHeader -Force }
     $AuthenticationHeader = New-AuthenticationHeader -AccessToken $AccessToken
 

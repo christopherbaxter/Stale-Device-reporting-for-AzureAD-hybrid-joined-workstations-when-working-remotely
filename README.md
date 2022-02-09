@@ -101,7 +101,7 @@ Nothing really to see here
 
 ### Blending On-Prem AD Data with Intune Data
 
-Here you will see that there is a section that if enabled, will import the exported data from the previous extractions, if the relevent export is enabled above. If you are testing, this section will test for the existance of the data in memory, if not present, will import from the 'interim' file\s
+Here you will see that there is a section that if enabled, will import the exported data from the previous extractions, if the relevent export is enabled above. If you are testing, this section will test for the existance of the data in memory, if not present, will import from the 'interim' file\s.
 
 ![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-prem%20AD%20with%20Intune%20Data%20Blending%20Process.jpg)
 
@@ -118,6 +118,12 @@ In this section, I deduplicate the data, then 'blend' the AzureAD device data wi
 ### Report Export - This is where the Magic happens!!!
 
 This little section, is where the magic happens. This section will do the calculation on the OPStale, AADStale and MSGraphLastSyncStale fields. These are calculated fields higher up in the script. If a device is stale on-prem (likely if working remotely), but not in AzureAD, then the device is **NOT** stale\dormant. If the device is not matched to an AzureAD object, then the device **IS** classified as stale\dormant. In the same way, if the device is classified as stale\dormant in AzureAD, and not in on-prem AD, the device is **NOT** stale\dormant. If the AzureAD device is stale in in AzureAD but the device is not matched to an on-prem object, the device **IS** stale.
+
+This is what the code looks like:
+
+This is a snippet of the code on line 562. This code it what does all the analysis of the computer accounts: 
+
+`@{Name = "TrueStale"; Expression = { if ($_.AADStale -notlike "False" -and $_.OPStale -notlike "False" -and $_.MSGraphLastSyncStale -notlike "False") { "TRUE" } else { "FALSE" } } }, @{Name = "AccountEnabled"; Expression = { if ($_.AADEnabled -notlike "False" -and $_.OPEnabled -notlike "False") { "TRUE" } else { "FALSE" } } })`
 
 The export will export all devices in the report, both stale and active. This is easily switched. The code is in the script. There is also the 'remote' export if you would like to send the extract to another server\share.
 
