@@ -40,12 +40,6 @@ The functions needed by the script are included in the script. I have modified t
 
 ![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/Functions.jpg)
 
-### Asking for the TenantID and the ClientID if not specified
-
-This section will ask for the TenantID and the ClientID if not specified in 'params'
-
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/TenantID%20-%20ClientID%20request.jpg)
-
 ### The Variables
 
 The variables get set here. I have a need to upload the report for another team to use for another report. Enable these and you will be able to do the same.
@@ -68,7 +62,25 @@ This section also requires an authentication process and will allow for MFA. The
 
 Having the 'authy' bits in this order, the script will ask for auth and MFA for MS Graph, then auth and MFA for AzureAD, one after the other with no delay, allowing the script to run without manual intervention. 
 
-You will notice that I sort the data. This is needed to speed up the 'join' processes later on
+    $AzureADDevices = [System.Collections.ArrayList]@(Get-AzureADDevice -All:$TRUE | Where-Object { $_.DeviceOSType -like "*Windows*" } | 
+    Select-Object @{Name = "AzureADDeviceID"; Expression = { $_.DeviceId.toString() } }, @{Name = "ObjectID"; Expression = { $_.ObjectID.toString() } }, 
+    @{Name = "AADEnabled"; Expression = { $_.AccountEnabled } }, 
+    @{Name = "AADApproximateLastLogonTimeStamp"; Expression = { (Get-Date -Date $_.ApproximateLastLogonTimeStamp -Format 'yyyy/MM/dd HH:mm') } }, 
+    @{Name = "AADDisplayName"; Expression = { $_.DisplayName } }, 
+    @{Name = "AADSTALE"; Expression = { if ($_.ApproximateLastLogonTimeStamp -le $StaleDate) { "TRUE" } elseif ($_.ApproximateLastLogonTimeStamp -gt $StaleDate) { "FALSE" } else { "NoLoginDateFound" } } } | Sort-Object azureADDeviceId )    
+
+I extract the data into an ArrayList. This was needed for a previous 'join' function, I left it like this because I noted strange errors in other scripts. I never had the time to validate that this is the case here, so I simply left it in place. At some point, I would like to test other array types and test processing time between them, not now, this works exactly as needed.
+
+I have tried to split this code up a little to allow for easier 'reading', and hopefully understanding.
+You will note that I transform the data in the extract and convert 'DeviceId' and 'ObjectId' to string values and call them 'AzureADDeviceID' and 'ObjectId' respectively. The string values allow for easier processing later on in the script. 
+I convert 'ApproximateLastLogonTimeStamp' to a date in a format that is uniform for what I need, and call it 'AADApproximateLastLogonTimeStamp'.
+I then extract 'DisplayName' and call it 'AADDisplayName'.
+
+#### Now, for the key to the reporting. 
+
+I create a field in the array called 'AADStale', this is a calculation from the 'ApproximateLastLogonTimeStamp'. If the date is 'less than' (older than) the '$StaleDate = (Get-Date).AddDays(-90)' variable (current date minus 90 days in this case), the value is "TRUE" (Stale), else, if the date is 'greater than' (younger than) the '$StaleDate' variable, the value is then "FALSE" (not stale). If there is no date in the data, then the value is "NoLoginDateFound"
+
+You will notice that I sort the data. This is needed to speed up the 'join' processes later on.
 
 ![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/ExtractAzureAD%20Device%20details.jpg)
 
