@@ -93,11 +93,28 @@ You will notice a hashed out export line, as well as a resource cleanup (Remove-
 
 You will notice here that I refresh the token for MS Graph extraction. This should not ask for auth or MFA again as we are simply renewing a current token. Without this section, data extraction fails. Nothing really fancy here, apart from the data transformation perhaps. I also sort the data for use later.
 
+    $IntuneInterimArray = [System.Collections.ArrayList]@(Invoke-MSGraphOperation -Get -APIVersion "Beta" -Resource "deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'" -Headers $AuthenticationHeader -Verbose | 
+    Where-Object { $_.azureADDeviceId -ne "00000000-0000-0000-0000-000000000000" } | 
+    Select-Object @{Name = "azureADDeviceId"; Expression = { $_.azureADDeviceId.toString() } }, 
+    @{Name = "IntuneDeviceID"; Expression = { $_.id.ToString() } }, 
+    @{Name = "MSGraphDeviceName"; Expression = { $_.deviceName } }, 
+    @{Name = "enrolledDateTime"; Expression = { (Get-Date -Date $_.enrolledDateTime -Format "yyyy/MM/dd HH:mm") } }, 
+    @{Name = "MSGraphlastSyncDateTime"; Expression = { (Get-Date -Date $_.lastSyncDateTime -Format "yyyy/MM/dd HH:mm") } }, 
+    @{Name = "MSGraphLastSyncStale"; Expression = { if ((Get-Date -Date $_.lastSyncDateTime -Format "yyyy/MM/dd HH:mm") -le $StaleDate) { "TRUE" } elseif ((Get-Date -Date $_.lastSyncDateTime -Format "yyyy/MM/dd HH:mm") -gt $StaleDate) { "FALSE" } else { "NoLoginDateFound" } } }, @{Name = "UserUPN"; Expression = { $_.userPrincipalName } } | Sort-Object IntuneDeviceID)    
+
+Ok, so much the same with the export from the MSGraph API for the devices in Intune (I use "beta' because the attribute names differ between 'Beta' and 'v1.0' in some cases, this makes it quicker for me to share code between scripts, this can easily be convferted to 'v1.0' if the data is available, I have not checked).
+
+The one exception in this section of code is that I had to convert the dates in the calculation, it would likely be quicker to convert the date once, then calculate on that, this could be tested in another iteration of the script. I then sort the data on 'IntuneDeviceID'
+
 ![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/ExtractIntune%20Device%20details.jpg)
 
 ### On-Prem AD Data Extraction
 
 This script has been written to extract all the details for all the Windows 10 devices in an AD forest. If you are wanting to specify only a specific domain, you will need to edit the 'Variables' section.
+
+I added a section to specify a specific domain controller to target if needed. The code is pretty cool, so I left it here.
+
+![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/DomainControllerSelection.jpg)
 
 ![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-Prem%20AD%20extract%20-%201.jpg)
 
@@ -107,9 +124,24 @@ I had a number of issues with the extraction with timeouts for some reason. I as
 
 This has proven to be pretty reliable, thankfully.
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-Prem%20AD%20extract%20-%203%20-%20Data%20Export.jpg)
+#### Here is the on-prem data processing section
 
-Nothing really to see here
+    $AllOPCompsArray = [System.Collections.ArrayList]@($RAWAllComps | Select-Object 
+    @{Name = "azureADDeviceId"; Expression = { $_.objectGUID.toString() } }, 
+    @{Name = "OPDeviceName"; Expression = { $_.CN } }, 
+    @{Name = "OPDeviceFQDN"; Expression = { "$($_.CN).$($_.CanonicalName.Split('/')[0])" } }, 
+    @{Name = "SourceDomain"; Expression = { "$($_.CanonicalName.Split('/')[0])" } }, 
+    @{Name = "OPLastLogonTS"; Expression = { (Get-Date -Date $_.LastLogonDate -Format "yyyy/MM/dd HH:mm") } }, 
+    @{Name = "OPSTALE"; Expression = { if ($_.LastLogonDate -le $StaleDate) { "TRUE" } elseif ($_.LastLogonDate -gt $StaleDate) { "FALSE" } else { "NoLoginDateFound" } } }, @{Name = "OPEnabled"; Expression = { $_.Enabled } } | Sort-Object azureADDeviceId )
+
+I noticed that in our estate, the on-prem 'objectGUID' matches the 'AzureADDeviceID', so, this exists. I also specify it as a string value.
+As Microsoft (as of the time of writing) has not provided an easily accessible method of finding the source domain data in AzureAD to enable splitting of the machines by source domain, so I had to create one in my reporting, so I create a field in the array called "OPDeviceFQDN", which is a calculated value using the 'CN' and the 'CanonicalName', but split and using only the first object, with a '.' in the middle. The "SourceDomain" field is much the same, but without the machine name ('CN').
+The "OPLastLogonTS" is the 'LastLogonDate'
+The "OPSTALE" section is a calculation again, much the same as the other calculations from Intune\AzureAD.
+
+I sort the data by "azureADDeviceId".
+
+![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-Prem%20AD%20extract%20-%203%20-%20Data%20Export.jpg)
 
 ### Blending On-Prem AD Data with Intune Data
 
@@ -117,9 +149,11 @@ Here you will see that there is a section that if enabled, will import the expor
 
 ![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-prem%20AD%20with%20Intune%20Data%20Blending%20Process.jpg)
 
-Now things start to get interesting. The script in this section 'blends' the previously extracted data. The data is matched using the 'objectGUID' from the on-prem data extraction with the 'AzureADDeviceID' from the Intune extract. Interestingly, the on-prem AD 'objectGUID' and the 'AzureADDeviceID' is the same. At least if the devices are Hybrid joined. I am unable to comment on other environments though. Your mileage may vary.
+Below I use a term 'blend'. I dont realy know what to call this. It is similar to a SQL join function apparently. What is does is takes the 2 arrays, containing very different information, and joins the data based on a specific field, that is present in both arrays. I sort the data in the arrays in an attempt to speed up processing, I dont remember testing the performance though, it may not be needed. The sorting takes seconds so, I left it in.
 
-I 'blend' the data in both 'directions'. I noted that I got different numbers (object counts) so, for completeness, this process was born. This also creates a number of duplicate records.
+Now things start to get interesting. The script in this section 'blends' the previously extracted data. The data is matched using the 'objectGUID' (now 'azureADDeviceID') from the on-prem data extraction with the 'AzureADDeviceID' from the Intune extract. Interestingly, the on-prem AD 'objectGUID' and the 'AzureADDeviceID' is the same (as stated earlier). At least if the devices are Hybrid joined. I am unable to comment on other environments though. Your mileage may vary.
+
+I 'blend' the data in both 'directions' (first using the Intune extract as the left array and the on-prem as the right array then swopping the arrays). I noted that I got different numbers (object counts) so, for completeness, this process was born. This also duplicates a lot of the data, but ensures that the data is as complete as possible.
 
 ### Data Deduplication and AzureAD Data Blending
 
@@ -133,9 +167,15 @@ This little section, is where the magic happens. This section will do the calcul
 
 This is what the code looks like:
 
-This is a snippet of the code on line 562. This code it what does all the analysis of the computer accounts: 
+This is a snippet of the code on line 575. This code it what does all the analysis of the computer accounts: 
 
-`@{Name = "TrueStale"; Expression = { if ($_.AADStale -notlike "False" -and $_.OPStale -notlike "False" -and $_.MSGraphLastSyncStale -notlike "False") { "TRUE" } else { "FALSE" } } }, @{Name = "AccountEnabled"; Expression = { if ($_.AADEnabled -notlike "False" -and $_.OPEnabled -notlike "False") { "TRUE" } else { "FALSE" } } })`
+    $AllDevices = [System.Collections.ArrayList]@($DDAllDevProcArray | Select-Object AzureADDeviceID, IntuneDeviceID, ObjectID, AADDisplayName, MSGraphDeviceName, OPDeviceName, OPDeviceFQDN, SourceDomain, UserUPN, enrolledDateTime, AADApproximateLastLogonTimeStamp, MSGraphlastSyncDateTime, OPLastLogonTS, AADEnabled, OPEnabled, AADSTALE, OPSTALE, MSGraphLastSyncStale, 
+    @{Name = "TrueStale"; Expression = { if ($_.AADStale -notlike "False" -and $_.OPStale -notlike "False" -and $_.MSGraphLastSyncStale -notlike "False") { "TRUE" } else { "FALSE" } } }, 
+    @{Name = "AccountEnabled"; Expression = { if ($_.AADEnabled -notlike "False" -and $_.OPEnabled -notlike "False") { "TRUE" } else { "FALSE" } } })
+
+The calculated field "TrueStale" will show "TRUE" only if the fields "AADSTALE", "OPSTALE" and "MSGraphLastSyncStale" are specifically "False", else this will show the device as truly stale. This means that if any of the fields are anything other than "False", like "TRUE", "NoLoginDateFound" or $null will be classified as "TrueStale".
+
+I then, for dexterity, created a calculated field called "AccountEnabled". This field will only show as "TRUE" if both "AADEnabled" and "OPEnabled" are not "False" (Same rule as "TrueStale" above).
 
 The export will export all devices in the report, both stale and active. This is easily switched. The code is in the script. There is also the 'remote' export if you would like to send the extract to another server\share.
 
@@ -143,4 +183,4 @@ The export will export all devices in the report, both stale and active. This is
 
 ### Whats Next?
 
-I will be incorporating the payload into another script to be able to actually disable the devices that are stale, both in AzureAD and on-prem AD. This will be in the next few weeks.
+I have started work on the Disablement script, I am finding it very difficult to find the time to dig into this at the moment though. Business as Usual work takes precidence over all else, so this is on the backburner, hoping to spend a little time on this in the next few weeks.

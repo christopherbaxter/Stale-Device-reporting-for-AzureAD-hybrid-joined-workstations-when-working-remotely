@@ -471,6 +471,9 @@ Process {
 
     foreach ( $DomainTarget in $DomainTargets ) {
         $OPADProcessed++
+        #if ( $DomainTarget -eq "dom1.local" ) { [string]$ServerTarget = 'DC01.dom1.local' }
+        #elseif ( $DomainTarget -eq "dom2.local" ) { [string]$ServerTarget = 'DC05.dom2.local' }
+        #else { [string]$ServerTarget = (Get-ADDomainController -Discover -DomainName $DomainTarget).HostName }
         [string]$ServerTarget = (Get-ADDomainController -Discover -DomainName $DomainTarget).HostName # Attempt to locate closest domain controller
        
         $OPDisplay = ( $OPADProcessed / $OPADCount ).tostring("P")
