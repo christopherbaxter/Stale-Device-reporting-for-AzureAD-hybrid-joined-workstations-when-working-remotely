@@ -48,7 +48,11 @@ param(
 )
 Begin {}
 Process {
+    
+    #############################################################################################################################################
     # Functions
+    #############################################################################################################################################
+
     function Invoke-MSGraphOperation {
         <#
         .SYNOPSIS
@@ -385,7 +389,9 @@ Process {
     
     }
 
-    
+    #############################################################################################################################################
+    # Variables
+    #############################################################################################################################################
 
     # Variables - Customise these for your environment
     $Script:PIMExpired = $null
@@ -408,8 +414,12 @@ Process {
     [System.Net.WebRequest]::DefaultWebProxy = [System.Net.WebRequest]::GetSystemWebProxy()
     [System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials
 
+    #############################################################################################################################################
+    # Get Authentication Token and Authentication Header
+    #############################################################################################################################################
+
     Clear-ResourceEnvironment
-    if ($AccessToken) { Remove-Variable -Name AccessToken -Force }
+    #if ($AccessToken) { Remove-Variable -Name AccessToken -Force }
     Try { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ForceRefresh -Silent -ErrorAction Stop }
     catch { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ErrorAction Stop }
     if ($AuthenticationHeader) { Remove-Variable -Name AuthenticationHeader -Force }
