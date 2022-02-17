@@ -426,7 +426,7 @@ Process {
     $MostRecentStaleDeviceReportFileName = @(Get-ChildItem -Path "$($FilePath)Output\" | Where-Object { $_.Name -like "$($StaleDeviceReportFileName)*.xlsx" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Select-Object name)
     $MostRecentStaleDeviceReportPath = "$($FilePath)Output\$($MostRecentStaleDeviceReportFileName.Name)"
     $Devices = [System.Collections.ArrayList]@(Import-Excel -Path $MostRecentStaleDeviceReportPath)
-    $StaleDevices = [System.Collections.ArrayList]@($Devices | Where-Object {($_.TrueStale -match "TRUE")}
+    #$StaleDevices = [System.Collections.ArrayList]@($Devices | Where-Object {($_.TrueStale -match "TRUE")}
 
     Remove-Variable -Name Devices -Force
     Clear-ResourceEnvironment
