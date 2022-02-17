@@ -426,10 +426,16 @@ Process {
     $MostRecentStaleDeviceReportFileName = @(Get-ChildItem -Path "$($FilePath)Output\" | Where-Object { $_.Name -like "$($StaleDeviceReportFileName)*.xlsx" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Select-Object name)
     $MostRecentStaleDeviceReportPath = "$($FilePath)Output\$($MostRecentStaleDeviceReportFileName.Name)"
     $Devices = [System.Collections.ArrayList]@(Import-Excel -Path $MostRecentStaleDeviceReportPath)
-    $StaleDevices = [System.Collections.ArrayList]@($Devices | Where-Object {($_.TrueStale -match "TRUE")}
+    $StaleDevices = [System.Collections.ArrayList]@($Devices | Where-Object {($_.TrueStale -match "TRUE")})
 
     Remove-Variable -Name Devices -Force
     Clear-ResourceEnvironment
+
+    #############################################################################################################################################
+    # Disable On-Prem accounts
+    #############################################################################################################################################
+
+    # I still need to write the section to allow for exclusions fro whatever reason (If someone feels that the CIO's old laptop that was replaced should not be disabled, or similar crazy stuff.)
 
     foreach ( $DomainTarget in $DomainTargets ) {
 
@@ -437,21 +443,15 @@ Process {
         $StaleOPDevices = [System.Collections.ArrayList]@($StaleDevices | Where-Object {($_.SourceDomain -eq "$($DomainTarget)") -and ($_.TrueStale -eq "TRUE") -and ($_.OPEnabled -eq "TRUE")} | Select-Object OPDeviceName)
 
         foreach ( $StaleOPDevice in $StaleOPDevices ) {
-            Set-ADComputer -Identity $StaleOPDevice.OPDeviceName -Server $ServerTarget -Enabled:$False -Confirm:$False -WhatIf -ErrorAction Stop
-            Get-ADObject -Identity 
-            
-            
-            if($?){
+            try{
+                Set-ADComputer -Identity "$StaleOPDevice.OPDeviceName" -Server $ServerTarget -Enabled:$False -Confirm:$False -ErrorAction Stop
+                if($?){
                     $Results += @($StaleOPDevice | Select-Object OPDeviceName,@{Name = "Domain";Expression = {$DomainTarget}},@{Name = "SuccessfullyDisabled";Expression = {"TRUE"}},@{Name = "Error";Expression = {"None"}})
                 }
             }
             catch{
-                $Results += @($StaleOPDevice | Select-Object OPDeviceName,@{Name = "Domain";Expression = {$DomainTarget}},@{Name = "SuccessfullyDisabled";Expression = {"FALSE"}},@{Name = "Error";Expression = {"$($_.Exception.Message)"}})
+                $Results += @($StaleOPDevice | Select-Object OPDeviceName,@{Name = "Domain";Expression = {$DomainTarget}},@{Name = "SuccessfullyDisabled";Expression = {"FALSE"}})
             }
         }
-
     }
-
-
-
 }
