@@ -472,14 +472,10 @@ Process {
     foreach ( $DomainTarget in $DomainTargets ) {
         $OPADProcessed++
 
-        if ( $DomainTarget -eq "ao.sbicdirectory.com" ) { [string]$ServerTarget = 'afrangazudgs01.ao.sbicdirectory.com' }
-        elseif ( $DomainTarget -eq "sbintldirectory.com" ) { [string]$ServerTarget = 'EURCIBJHBFGS01.sbintldirectory.com' }
-        elseif ( $DomainTarget -eq "scmbdirectory.com" ) { [string]$ServerTarget = 'AFRCIBSDCDGS03.scmbdirectory.com' }
-        else { [string]$ServerTarget = (Get-ADDomainController -Discover -DomainName $DomainTarget).HostName }
         #if ( $DomainTarget -eq "dom1.local" ) { [string]$ServerTarget = 'DC01.dom1.local' }
         #elseif ( $DomainTarget -eq "dom2.local" ) { [string]$ServerTarget = 'DC05.dom2.local' }
         #else { [string]$ServerTarget = (Get-ADDomainController -Discover -DomainName $DomainTarget).HostName }
-        #[string]$ServerTarget = (Get-ADDomainController -Discover -DomainName $DomainTarget).HostName # Attempt to locate closest domain controller
+        [string]$ServerTarget = (Get-ADDomainController -Discover -DomainName $DomainTarget).HostName # Attempt to locate closest domain controller
        
         $OPDisplay = ( $OPADProcessed / $OPADCount ).tostring("P")
         Write-Progress -Activity "Extracting Data" -Status "Collecting Data from OnPrem AD - $($OPADProcessed) of $($OPADCount) - $($OPDisplay) Completed" -CurrentOperation "Extracting from $($DomainTarget) on $($ServerTarget)" -PercentComplete (( $OPADProcessed / $OPADCount ) * 100 )
