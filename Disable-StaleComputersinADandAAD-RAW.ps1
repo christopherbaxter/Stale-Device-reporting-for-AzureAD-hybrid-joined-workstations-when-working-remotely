@@ -36,17 +36,21 @@
 [CmdletBinding(SupportsShouldProcess = $TRUE)]
 param(
     #PLEASE make sure you have specified your details below, else edit this and use the switches\variables in command line.
-    [parameter(Mandatory = $False, HelpMessage = "Specify the Azure AD tenant ID.")]
+    [parameter(Mandatory = $TRUE, HelpMessage = "Specify the Azure AD tenant ID.")]
     [ValidateNotNullOrEmpty()]
-    [string]$TenantID = "", # Populate this with your TenantID, this will then allow the script to run without asking for the details
+    [string]$TenantID, # Populate this with your TenantID, this will then allow the script to run without asking for the details
 
-    [parameter(Mandatory = $False, HelpMessage = "Specify the service principal, also known as app registration, Client ID (also known as Application ID).")]
+    [parameter(Mandatory = $TRUE, HelpMessage = "Specify the service principal, also known as app registration, Client ID (also known as Application ID).")]
     [ValidateNotNullOrEmpty()]
-    [string]$ClientID = "" # Populate this with your ClientID\ApplicationID of your Service Principal, this will then allow the script to run without asking for the details
+    [string]$ClientID # Populate this with your ClientID\ApplicationID of your Service Principal, this will then allow the script to run without asking for the details
 )
 Begin {}
 Process {
+    
+    #############################################################################################################################################
     # Functions
+    #############################################################################################################################################
+
     function Invoke-MSGraphOperation {
         <#
         .SYNOPSIS
@@ -383,15 +387,10 @@ Process {
     
     }
 
-    if(-not($TenantID)){
-        [string]$TenantID = Read-Host -Prompt "Enter your TenantID"
-    }
-
-    if(-not($ClientID)){
-        [string]$ClientID = Read-Host -Prompt "Enter ClientID of your Service Principal"
-    }
-
+    #############################################################################################################################################
     # Variables - Customise these for your environment
+    #############################################################################################################################################
+    
     $Script:PIMExpired = $null
     $FileDate = Get-Date -Format 'yyyy_MM_dd'
     $FilePath = "C:\Temp\StaleComputers\"
@@ -410,28 +409,39 @@ Process {
     [System.Net.WebRequest]::DefaultWebProxy = [System.Net.WebRequest]::GetSystemWebProxy()
     [System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultNetworkCredentials
 
+    #############################################################################################################################################
+    # Get Authentication Token and Authentication Header
+    #############################################################################################################################################
+
     Clear-ResourceEnvironment
-    if ($AccessToken) { Remove-Variable -Name AccessToken -Force }
-    Try { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ForceRefresh -Silent -ErrorAction Stop }
+    try { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ForceRefresh -Silent -ErrorAction Stop }
     catch { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ErrorAction Stop }
     if ($AuthenticationHeader) { Remove-Variable -Name AuthenticationHeader -Force }
     $AuthenticationHeader = New-AuthenticationHeader -AccessToken $AccessToken
 
-
+    #############################################################################################################################################
+    # Import Data from the Stale Computer Report
+    #############################################################################################################################################
 
     $MostRecentStaleDeviceReportFileName = @(Get-ChildItem -Path "$($FilePath)Output\" | Where-Object { $_.Name -like "$($StaleDeviceReportFileName)*.xlsx" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Select-Object name)
     $MostRecentStaleDeviceReportPath = "$($FilePath)Output\$($MostRecentStaleDeviceReportFileName.Name)"
-    $StaleDevices = [System.Collections.ArrayList]@(Import-Excel -Path $MostRecentStaleDeviceReportPath)
+    $Devices = [System.Collections.ArrayList]@(Import-Excel -Path $MostRecentStaleDeviceReportPath)
+    $StaleDevices = [System.Collections.ArrayList]@($Devices | Where-Object {($_.TrueStale -match "TRUE")}
+
+    Remove-Variable -Name Devices -Force
+    Clear-ResourceEnvironment
 
     foreach ( $DomainTarget in $DomainTargets ) {
-        #$DomainTarget = "ao.sbicdirectory.com"
+
         [string]$ServerTarget = (Get-ADDomainController -Discover -DomainName $DomainTarget).HostName # Attempt to locate closest domain controller
         $StaleOPDevices = [System.Collections.ArrayList]@($StaleDevices | Where-Object {($_.SourceDomain -eq "$($DomainTarget)") -and ($_.TrueStale -eq "TRUE") -and ($_.OPEnabled -eq "TRUE")} | Select-Object OPDeviceName)
 
         foreach ( $StaleOPDevice in $StaleOPDevices ) {
-            try{
-                Set-ADComputer -Identity $StaleOPDevice.OPDeviceName -Server $ServerTarget -Enabled:$False -Confirm:$False -ErrorAction Stop
-                if($?){
+            Set-ADComputer -Identity $StaleOPDevice.OPDeviceName -Server $ServerTarget -Enabled:$False -Confirm:$False -WhatIf -ErrorAction Stop
+            Get-ADObject -Identity 
+            
+            
+            if($?){
                     $Results += @($StaleOPDevice | Select-Object OPDeviceName,@{Name = "Domain";Expression = {$DomainTarget}},@{Name = "SuccessfullyDisabled";Expression = {"TRUE"}},@{Name = "Error";Expression = {"None"}})
                 }
             }
