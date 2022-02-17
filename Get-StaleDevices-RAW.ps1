@@ -36,12 +36,12 @@
 [CmdletBinding(SupportsShouldProcess = $TRUE)]
 param(
     #PLEASE make sure you have specified your details below, else edit this and use the switches\variables in command line.
-    [parameter(Mandatory = $False, HelpMessage = "Specify the Azure AD tenant ID.")]
+    [parameter(Mandatory = $TRUE, HelpMessage = "Specify the Azure AD tenant ID.")]
     [ValidateNotNullOrEmpty()]
     #[string]$TenantID = "", # Populate this with your TenantID, this will then allow the script to run without asking for the details
     [string]$TenantID,
 
-    [parameter(Mandatory = $False, HelpMessage = "Specify the service principal, also known as app registration, Client ID (also known as Application ID).")]
+    [parameter(Mandatory = $TRUE, HelpMessage = "Specify the service principal, also known as app registration, Client ID (also known as Application ID).")]
     [ValidateNotNullOrEmpty()]
     #[string]$ClientID = "" # Populate this with your ClientID\ApplicationID of your Service Principal, this will then allow the script to run without asking for the details
     [string]$ClientID
@@ -407,7 +407,7 @@ Process {
     $DomainTargets = (Get-ADForest -Identity $ADForest).Domains     # Get the list of domains. This scales out for multidomain AD forests
     $ScriptStartTime = Get-Date -Format 'yyyy-MM-dd HH:mm'
     $StaleDate = (Get-Date).AddDays(-90)                            # number of days before a device is classified as stale\dormant
-
+    
     [string]$Resource = "deviceManagement/managedDevices"
 
     # Grab the system proxy for internet access
@@ -443,7 +443,7 @@ Process {
     # Intune Managed Device Data Extraction
     #############################################################################################################################################
 
-    Try { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ForceRefresh -Silent -ErrorAction Stop }
+    try { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ForceRefresh -Silent -ErrorAction Stop }
     catch { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ErrorAction Stop }
     if ($AuthenticationHeader) { Remove-Variable -Name AuthenticationHeader -Force }
     $AuthenticationHeader = New-AuthenticationHeader -AccessToken $AccessToken
@@ -454,7 +454,7 @@ Process {
 
     Write-Host "Collected Data for $($IntuneInterimArray.count) objects from MS Graph Intune - Completion Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm')" -ForegroundColor Green
 
-    #$IntuneInterimArray | Export-Csv -Path "$($InterimFileLocation)STALEIntuneInterimArray.csv" -Delimiter ";" -NoTypeInformation
+    $IntuneInterimArray | Export-Csv -Path "$($InterimFileLocation)STALEIntuneInterimArray.csv" -Delimiter ";" -NoTypeInformation
     #Remove-Variable -Name IntuneInterimArray -Force
     #Clear-ResourceEnvironment
 
@@ -471,6 +471,7 @@ Process {
 
     foreach ( $DomainTarget in $DomainTargets ) {
         $OPADProcessed++
+
         #if ( $DomainTarget -eq "dom1.local" ) { [string]$ServerTarget = 'DC01.dom1.local' }
         #elseif ( $DomainTarget -eq "dom2.local" ) { [string]$ServerTarget = 'DC05.dom2.local' }
         #else { [string]$ServerTarget = (Get-ADDomainController -Discover -DomainName $DomainTarget).HostName }
@@ -558,7 +559,7 @@ Process {
     Remove-Variable -Name RAWAllDevNoIntuneDeviceID -Force
     Clear-ResourceEnvironment
 
-    #$DDAllDevProcArray | Export-Csv -Path "$($InterimFileLocation)STALEDDAllDevProcArray.csv" -Delimiter ";" -NoTypeInformation
+    $DDAllDevProcArray | Export-Csv -Path "$($InterimFileLocation)STALEDDAllDevProcArray.csv" -Delimiter ";" -NoTypeInformation
     #Remove-Variable -Name DDAllDevProcArray -Force
     #Clear-ResourceEnvironment
 
@@ -573,8 +574,8 @@ Process {
     }#>
 
     $AllDevices = [System.Collections.ArrayList]@($DDAllDevProcArray | Select-Object AzureADDeviceID, IntuneDeviceID, ObjectID, AADDisplayName, MSGraphDeviceName, OPDeviceName, OPDeviceFQDN, SourceDomain, UserUPN, enrolledDateTime, AADApproximateLastLogonTimeStamp, MSGraphlastSyncDateTime, OPLastLogonTS, AADEnabled, OPEnabled, AADSTALE, OPSTALE, MSGraphLastSyncStale, @{Name = "TrueStale"; Expression = { if ($_.AADStale -notlike "False" -and $_.OPStale -notlike "False" -and $_.MSGraphLastSyncStale -notlike "False") { "TRUE" } else { "FALSE" } } }, @{Name = "AccountEnabled"; Expression = { if ($_.AADEnabled -notlike "False" -and $_.OPEnabled -notlike "False") { "TRUE" } else { "FALSE" } } })
-    #$StaleDevices = [System.Collections.ArrayList]@($AllDevices | Where-Object { ($_.TrueStale -like "TRUE") } | Select-Object AzureADDeviceID, IntuneDeviceID, ObjectID, AADDisplayName, MSGraphDeviceName, OPDeviceName, OPDeviceFQDN, SourceDomain, UserUPN, enrolledDateTime, AADApproximateLastLogonTimeStamp, MSGraphlastSyncDateTime, OPLastLogonTS, AADEnabled, OPEnabled, AADSTALE, OPSTALE, MSGraphLastSyncStale, TrueStale, AccountEnabled)
-    $StaleDevices = [System.Collections.ArrayList]@($AllDevices | Select-Object AzureADDeviceID, IntuneDeviceID, ObjectID, AADDisplayName, MSGraphDeviceName, OPDeviceName, OPDeviceFQDN, SourceDomain, UserUPN, enrolledDateTime, AADApproximateLastLogonTimeStamp, MSGraphlastSyncDateTime, OPLastLogonTS, AADEnabled, OPEnabled, AADSTALE, OPSTALE, MSGraphLastSyncStale, TrueStale, AccountEnabled)
+    $StaleDevices = [System.Collections.ArrayList]@($AllDevices | Where-Object { ($_.TrueStale -like "TRUE") } | Select-Object AzureADDeviceID, IntuneDeviceID, ObjectID, AADDisplayName, MSGraphDeviceName, OPDeviceName, OPDeviceFQDN, SourceDomain, UserUPN, enrolledDateTime, AADApproximateLastLogonTimeStamp, MSGraphlastSyncDateTime, OPLastLogonTS, AADEnabled, OPEnabled, AADSTALE, OPSTALE, MSGraphLastSyncStale, TrueStale, AccountEnabled) # This will select only the devices that are truly stale.
+    #$StaleDevices = [System.Collections.ArrayList]@($AllDevices | Select-Object AzureADDeviceID, IntuneDeviceID, ObjectID, AADDisplayName, MSGraphDeviceName, OPDeviceName, OPDeviceFQDN, SourceDomain, UserUPN, enrolledDateTime, AADApproximateLastLogonTimeStamp, MSGraphlastSyncDateTime, OPLastLogonTS, AADEnabled, OPEnabled, AADSTALE, OPSTALE, MSGraphLastSyncStale, TrueStale, AccountEnabled) # This will select the full list of devices, both stale and active
     #$StaleDevices | Export-Excel -Path $StaleDeviceReportFile -ClearSheet -AutoSize -AutoFilter -Verbose:$VerbosePreference
     $StaleDevices | Export-Excel -Path $LocalStaleReportFile -ClearSheet -AutoSize -AutoFilter -Verbose:$VerbosePreference
 
