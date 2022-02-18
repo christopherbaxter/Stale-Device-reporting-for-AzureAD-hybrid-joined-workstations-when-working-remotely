@@ -414,10 +414,11 @@ Process {
     #############################################################################################################################################
 
     Clear-ResourceEnvironment
-    try { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ForceRefresh -Silent -ErrorAction Stop }
-    catch { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ErrorAction Stop }
-    if ($AuthenticationHeader) { Remove-Variable -Name AuthenticationHeader -Force }
-    $AuthenticationHeader = New-AuthenticationHeader -AccessToken $AccessToken
+    #try { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ForceRefresh -Silent -ErrorAction Stop }
+    #catch { $AccessToken = Get-MsalToken -TenantId $TenantID -ClientId $ClientID -ErrorAction Stop }
+    #if ($AuthenticationHeader) { Remove-Variable -Name AuthenticationHeader -Force }
+    #$AuthenticationHeader = New-AuthenticationHeader -AccessToken $AccessToken
+    Connect-AzureAD
 
     #############################################################################################################################################
     # Import Data from the Stale Computer Report
@@ -435,23 +436,45 @@ Process {
     # Disable On-Prem accounts
     #############################################################################################################################################
 
-    # I still need to write the section to allow for exclusions fro whatever reason (If someone feels that the CIO's old laptop that was replaced should not be disabled, or similar crazy stuff.)
-
+    # I still need to write the section to allow for exclusions for whatever reason (If someone feels that the CIO's old laptop that was replaced should not be disabled, or similar crazy stuff.)
+    
+    $OPResults = @()
     foreach ( $DomainTarget in $DomainTargets ) {
 
         [string]$ServerTarget = (Get-ADDomainController -Discover -DomainName $DomainTarget).HostName # Attempt to locate closest domain controller
-        $StaleOPDevices = [System.Collections.ArrayList]@($StaleDevices | Where-Object {($_.SourceDomain -eq "$($DomainTarget)") -and ($_.TrueStale -eq "TRUE") -and ($_.OPEnabled -eq "TRUE")} | Select-Object OPDeviceName)
+        $StaleOPDevices = [System.Collections.ArrayList]@($StaleDevices | Where-Object {($_.SourceDomain -eq "$($DomainTarget)") -and ($_.TrueStale -eq "TRUE") -and ($_.OPEnabled -eq "TRUE")} | Select-Object OPDeviceName,AzureADDeviceID,ObjectID)
 
         foreach ( $StaleOPDevice in $StaleOPDevices ) {
             try{
-                Set-ADComputer -Identity "$StaleOPDevice.OPDeviceName" -Server $ServerTarget -Enabled:$False -Confirm:$False -ErrorAction Stop
+                Set-ADComputer -Identity $StaleOPDevice.OPDeviceName -Server $ServerTarget -Enabled:$False -Confirm:$False -ErrorAction Stop
                 if($?){
-                    $Results += @($StaleOPDevice | Select-Object OPDeviceName,@{Name = "Domain";Expression = {$DomainTarget}},@{Name = "SuccessfullyDisabled";Expression = {"TRUE"}},@{Name = "Error";Expression = {"None"}})
+                    $OPResults += @($StaleOPDevice | Select-Object AzureADDeviceID,@{Name = "OPSuccessfullyDisabled";Expression = {"TRUE"}})
                 }
             }
             catch{
-                $Results += @($StaleOPDevice | Select-Object OPDeviceName,@{Name = "Domain";Expression = {$DomainTarget}},@{Name = "SuccessfullyDisabled";Expression = {"FALSE"}})
+                $OPResults += @($StaleOPDevice | Select-Object AzureADDeviceID,@{Name = "OPSuccessfullyDisabled";Expression = {"FALSE"}})
             }
         }
     }
+
+    $StaleAZDevices = [System.Collections.ArrayList]@($StaleDevices | Where-Object {($_.TrueStale -eq "TRUE") -and ($_.AADEnabled -eq "TRUE")} | Select-Object AADDisplayName,AzureADDeviceID,ObjectID)
+    $AZResults = @()
+    foreach ($Device in $StaleAZDevices) {
+        try{
+            Set-AzureADDevice -ObjectId $Device.ObjectID -AccountEnabled $False -ErrorAction Stop
+            if($?){
+                $AZResults += @($Device | Select-Object AzureADDeviceID,@{Name = "AADSuccessfullyDisabled";Expression = {"TRUE"}})
+            }
+        }
+        catch{
+            $AZResults += @($Device | Select-Object AzureADDeviceID,@{Name = "AADSuccessfullyDisabled";Expression = {"FALSE"}})
+        }
+    }
+    Disconnect-AzureAD
+
+    $OPDeviceResults = [System.Collections.ArrayList]@($StaleDevices | LeftJoin-Object $OPResults -On azureADDeviceId)
+    $AllDeviceResults = [System.Collections.ArrayList]@($OPDeviceResults | LeftJoin-Object $AZResults -On azureADDeviceId)
+
+#I need to complete the reporting export here.
+
 }
