@@ -181,6 +181,8 @@ The export will export all devices in the report, both stale and active. This is
 
 ![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/Report%20Export.jpg)
 
+I have uploaded a SAMPLE report output. Please take a look at it.
+
 ### Whats Next?
 
 I have started work on the Disablement script, I am finding it very difficult to find the time to dig into this at the moment though. Business as Usual work takes precidence over all else, so this is on the backburner, hoping to spend a little time on this in the next few weeks.
