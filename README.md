@@ -5,7 +5,7 @@ Managing stale workstations when most users are working from home using AzureAD 
 
 You will need a Service Principal in AzureAD with sufficient rights. I have a Service Principal that I use for multiple processes, I would not advise copying my permissions. I suggest following the guide from <https://msendpointmgr.com/2021/01/18/get-intune-managed-devices-without-an-escrowed-bitlocker-recovery-key-using-powershell/>. My permissions are set as in the image below. Please do not copy my permissions, this Service Principal is used for numerous tasks. I really should correct this, unfortunately, time has not been on my side, so I just work with what work for now. 
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/ServicePrincipal%20-%20API%20Permissions.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/ServicePrincipal%20-%20API%20Permissions.jpg)
 
 I also elevate my AzureAD account to 'Intune Administrator', 'Cloud Device Administrator' and 'Security Reader'. These permissions also feel more than needed. Understand that I work in a very large environment, that is very fast paced, so I elevate these as I need them for other tasks as well.
 
@@ -32,19 +32,19 @@ Before we start, I have expected 'runtimes' for each section. This is for my env
 
 The first section is where we supply the TenantID (Of the AzureAD tenant) and the ClientID of the Service Principal you have created. If you populate these (hard code), then the script will not ask for these and will immediately go to the Authentication process.
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/Parameters.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/Parameters.jpg)
 
 ### Functions
 
 The functions needed by the script are included in the script. I have modified the 'Invoke-MSGraphOperation' function significantly. I was running into issues with the token and renewing it. I also noted some of the errors went away with a retry or 2, so I built this into the function. Sorry @JankeSkanke @NickolajA for hacking at your work. :-)
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/Functions.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/Functions.jpg)
 
 ### The Variables
 
 The variables get set here. I have a need to upload the report for another team to use for another report. Enable these and you will be able to do the same.
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/Variables.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/Variables.jpg)
 
 The variable section also has a section to use the system proxy. I was having trouble with the proxy, intermittently. Adding these lines solved the problem
 
@@ -54,7 +54,7 @@ Ok, so now the 'fun' starts.
 
 The authentication and token acquisition will allow for auth with MFA. You will notice in the script that I have these commands running a few times in the script. This allows for token renewal without requiring MFA again. I also ran into some strange issues with different MS Graph API resources, where a token used for one resource, could not be used on the next resource, this corrects this issue, no idea why, never dug too deep into it because I needed it to work, not be pretty. :-)
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/InitAuthToken.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/InitAuthToken.jpg)
 
 ### AzureAD Device Data Extraction
 
@@ -82,7 +82,7 @@ I create a field in the array called 'AADStale', this is a calculation from the 
 
 You will notice that I sort the data. This is needed to speed up the 'join' processes later on.
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/ExtractAzureAD%20Device%20details.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/ExtractAzureAD%20Device%20details.jpg)
 
 You will notice a hashed out export line, as well as a resource cleanup (Remove-Variable and Clear-ResourceEnvironment). This is to serve 2 purposes, and is included in most of the sections. 
 
@@ -106,7 +106,7 @@ Ok, so much the same with the export from the MSGraph API for the devices in Int
 
 The one exception in this section of code is that I had to convert the dates in the calculation, it would likely be quicker to convert the date once, then calculate on that, this could be tested in another iteration of the script. I then sort the data on 'IntuneDeviceID'
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/ExtractIntune%20Device%20details.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/ExtractIntune%20Device%20details.jpg)
 
 ### On-Prem AD Data Extraction
 
@@ -114,13 +114,13 @@ This script has been written to extract all the details for all the Windows 10 d
 
 I added a section to specify a specific domain controller to target if needed. The code is pretty cool, so I left it here.
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/DomainControllerSelection.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/DomainControllerSelection.jpg)
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-Prem%20AD%20extract%20-%201.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/On-Prem%20AD%20extract%20-%201.jpg)
 
 I had a number of issues with the extraction with timeouts for some reason. I assume this is some strange network latency or something similar. One needs to remember to pick ones battles.
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-Prem%20AD%20extract%20-%202%20-%20Retries.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/On-Prem%20AD%20extract%20-%202%20-%20Retries.jpg)
 
 This has proven to be pretty reliable, thankfully.
 
@@ -141,13 +141,13 @@ The "OPSTALE" section is a calculation again, much the same as the other calcula
 
 I sort the data by "azureADDeviceId".
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-Prem%20AD%20extract%20-%203%20-%20Data%20Export.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/On-Prem%20AD%20extract%20-%203%20-%20Data%20Export.jpg)
 
 ### Blending On-Prem AD Data with Intune Data
 
 Here you will see that there is a section that if enabled, will import the exported data from the previous extractions, if the relevent export is enabled above. If you are testing, this section will test for the existance of the data in memory, if not present, will import from the 'interim' file\s.
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-prem%20AD%20with%20Intune%20Data%20Blending%20Process.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/On-prem%20AD%20with%20Intune%20Data%20Blending%20Process.jpg)
 
 Below I use a term 'blend'. I dont realy know what to call this. It is similar to a SQL join function apparently. What is does is takes the 2 arrays, containing very different information, and joins the data based on a specific field, that is present in both arrays. I sort the data in the arrays in an attempt to speed up processing, I dont remember testing the performance though, it may not be needed. The sorting takes seconds so, I left it in.
 
@@ -159,7 +159,7 @@ I 'blend' the data in both 'directions' (first using the Intune extract as the l
 
 In this section, I deduplicate the data, then 'blend' the AzureAD device data with the previously 'blended' data. I deduplicate the data first before blending the next lot of data. 
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/On-Prem%20-%20Intune%20Data%20blend%20deduplication.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/On-Prem%20-%20Intune%20Data%20blend%20deduplication.jpg)
 
 ### Report Export - This is where the Magic happens!!!
 
@@ -179,7 +179,7 @@ I then, for dexterity, created a calculated field called "AccountEnabled". This 
 
 The export will export all devices in the report, both stale and active. This is easily switched. The code is in the script. There is also the 'remote' export if you would like to send the extract to another server\share.
 
-![](https://github.com/christopherbaxter/StaleComputerAccounts/blob/main/Images/Report%20Export.jpg)
+![](Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/Report%20Export.jpg)
 
 I have uploaded a SAMPLE report output. Please take a look at it.
 
