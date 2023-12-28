@@ -138,6 +138,11 @@ I noticed that in our estate, the on-prem 'objectGUID' matches the 'AzureADDevic
 As Microsoft (as of the time of writing) has not provided an easily accessible method of finding the source domain data in AzureAD to enable splitting of the machines by source domain, so I had to create one in my reporting, so I create a field in the array called "OPDeviceFQDN", which is a calculated value using the 'CN' and the 'CanonicalName', but split and using only the first object, with a '.' in the middle. The "SourceDomain" field is much the same, but without the machine name ('CN').
 The "OPLastLogonTS" is the 'LastLogonDate'
 The "OPSTALE" section is a calculation again, much the same as the other calculations from Intune\AzureAD.
+I added a calculation to check if a device is disabled, and when the last update on the account occured. I use this to determine if a account is disabled, and if the last modification is older then 90 days, to make sure I can delete this object. 
+
+### HUGE CAVEAT
+#### The last modification date on a computer object appears to be the date that object was last replicated onto that specific Domain Controller. At least it appears to be.
+I recently targeted a newly promoted domain controller to get the last modified date and noticed that all the computer objects I checked had the last modification date set to the date when the DC was promoted, which skewed my data. Just something interesting that caught me by surprise.
 
 I sort the data by "azureADDeviceId".
 
