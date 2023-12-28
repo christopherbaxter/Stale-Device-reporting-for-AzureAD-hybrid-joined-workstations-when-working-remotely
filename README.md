@@ -115,6 +115,7 @@ This script has been written to extract all the details for all the Windows 10 d
 I added a section to specify a specific domain controller to target if needed. The code is pretty cool, so I left it here.
 
 ![](https://github.com/christopherbaxter/Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/DomainControllerSelection.jpg)
+![](https://private-user-images.githubusercontent.com/47409333/293186336-e548b7b9-41c8-44dd-96a0-fb9c29db18a4.jpg?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MDM3NjIxNjcsIm5iZiI6MTcwMzc2MTg2NywicGF0aCI6Ii80NzQwOTMzMy8yOTMxODYzMzYtZTU0OGI3YjktNDFjOC00NGRkLTk2YTAtZmI5YzI5ZGIxOGE0LmpwZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFJV05KWUFYNENTVkVINTNBJTJGMjAyMzEyMjglMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjMxMjI4VDExMTEwN1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWVjZWIxYmMzOGVjZGM0ZjZjMzFkMzI2NDM3ODVhZDczMGFmMGRiNjc5ODY0YzAyMmFjZTg4NmU0MDJkODcwYTkmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.qgjFDjVseZOVa_PfZ_mtfmcVZkAjw0vQq_F4tmCkSw8)
 
 ![](https://github.com/christopherbaxter/Stale-Device-reporting-for-AzureAD-hybrid-joined-workstations-when-working-remotely/tree/main/Images/On-Prem%20AD%20extract%20-%201.jpg)
 
